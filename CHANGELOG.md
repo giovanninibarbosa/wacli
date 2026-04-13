@@ -5,6 +5,7 @@
 ### Changed
 
 - Internal architecture: split store and groups command logic into focused modules for cleaner maintenance and safer follow-up changes.
+- Messages: polish `messages show` and `messages context` output to prefer stored display text and show richer media details.
 
 ### Build
 
