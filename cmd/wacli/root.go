@@ -21,10 +21,15 @@ type rootFlags struct {
 	storeDir string
 	asJSON   bool
 	timeout  time.Duration
+	readOnly bool
 }
 
+const readOnlyErrorMessage = "wacli is running in read-only mode (--readonly or WACLI_READONLY=1); write operations are disabled"
+
 func execute(args []string) error {
-	var flags rootFlags
+	flags := rootFlags{
+		readOnly: config.ReadOnlyEnabled(),
+	}
 
 	rootCmd := &cobra.Command{
 		Use:           "wacli",
@@ -37,6 +42,7 @@ func execute(args []string) error {
 	rootCmd.PersistentFlags().StringVar(&flags.storeDir, "store", "", "store directory (default: ~/.wacli)")
 	rootCmd.PersistentFlags().BoolVar(&flags.asJSON, "json", false, "output JSON instead of human-readable text")
 	rootCmd.PersistentFlags().DurationVar(&flags.timeout, "timeout", 5*time.Minute, "command timeout (non-sync commands)")
+	rootCmd.PersistentFlags().BoolVar(&flags.readOnly, "readonly", flags.readOnly, "disable write operations (or set WACLI_READONLY=1)")
 
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newDoctorCmd(&flags))
@@ -114,4 +120,11 @@ func wrapErr(err error, msg string) error {
 		return err
 	}
 	return fmt.Errorf("%s: %w", msg, err)
+}
+
+func requireWritable(flags *rootFlags) error {
+	if flags == nil || !flags.readOnly {
+		return nil
+	}
+	return fmt.Errorf(readOnlyErrorMessage)
 }
