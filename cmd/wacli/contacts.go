@@ -168,6 +168,9 @@ func newContactsAliasCmd(flags *rootFlags) *cobra.Command {
 		Use:   "set",
 		Short: "Set alias",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireWritable(flags); err != nil {
+				return err
+			}
 			jid, _ := cmd.Flags().GetString("jid")
 			alias, _ := cmd.Flags().GetString("alias")
 			if strings.TrimSpace(jid) == "" || strings.TrimSpace(alias) == "" {
@@ -194,6 +197,9 @@ func newContactsAliasCmd(flags *rootFlags) *cobra.Command {
 		Use:   "rm",
 		Short: "Remove alias",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireWritable(flags); err != nil {
+				return err
+			}
 			jid, _ := cmd.Flags().GetString("jid")
 			if strings.TrimSpace(jid) == "" {
 				return fmt.Errorf("--jid is required")
@@ -230,6 +236,9 @@ func newContactsTagsCmd(flags *rootFlags) *cobra.Command {
 		Use:   "add",
 		Short: "Add tag",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireWritable(flags); err != nil {
+				return err
+			}
 			jid, _ := cmd.Flags().GetString("jid")
 			tag, _ := cmd.Flags().GetString("tag")
 			if strings.TrimSpace(jid) == "" || strings.TrimSpace(tag) == "" {
@@ -256,6 +265,9 @@ func newContactsTagsCmd(flags *rootFlags) *cobra.Command {
 		Use:   "rm",
 		Short: "Remove tag",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := requireWritable(flags); err != nil {
+				return err
+			}
 			jid, _ := cmd.Flags().GetString("jid")
 			tag, _ := cmd.Flags().GetString("tag")
 			if strings.TrimSpace(jid) == "" || strings.TrimSpace(tag) == "" {
