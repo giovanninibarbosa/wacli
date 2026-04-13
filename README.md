@@ -53,6 +53,8 @@ pnpm wacli doctor
 
 # Search messages
 pnpm wacli messages search "meeting"
+pnpm wacli messages search "project" --has-media
+pnpm wacli messages search "project" --type text
 
 # Backfill older messages for a chat (best-effort; requires your primary device online)
 pnpm wacli history backfill --chat 1234567890@s.whatsapp.net --requests 10 --count 50

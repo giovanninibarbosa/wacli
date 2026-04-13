@@ -5,6 +5,7 @@
 ### Changed
 
 - Internal architecture: split store and groups command logic into focused modules for cleaner maintenance and safer follow-up changes.
+- Messages: add `messages search --has-media` plus normalized `--type` filtering, including `--type text` for plain messages.
 
 ### Build
 
