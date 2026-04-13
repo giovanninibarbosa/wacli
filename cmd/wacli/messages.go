@@ -123,6 +123,7 @@ func newMessagesSearchCmd(flags *rootFlags) *cobra.Command {
 	var afterStr string
 	var beforeStr string
 	var msgType string
+	var hasMedia bool
 
 	cmd := &cobra.Command{
 		Use:   "search <query>",
@@ -155,14 +156,23 @@ func newMessagesSearchCmd(flags *rootFlags) *cobra.Command {
 				before = &t
 			}
 
+			normalizedType, err := normalizeMessageType(msgType)
+			if err != nil {
+				return err
+			}
+			if hasMedia && normalizedType == "text" {
+				return fmt.Errorf("--has-media cannot be combined with --type text")
+			}
+
 			msgs, err := a.DB().SearchMessages(store.SearchMessagesParams{
-				Query:   args[0],
-				ChatJID: chat,
-				From:    from,
-				Limit:   limit,
-				After:   after,
-				Before:  before,
-				Type:    msgType,
+				Query:    args[0],
+				ChatJID:  chat,
+				From:     from,
+				Limit:    limit,
+				After:    after,
+				Before:   before,
+				Type:     normalizedType,
+				HasMedia: hasMedia,
 			})
 			if err != nil {
 				return err
@@ -214,7 +224,8 @@ func newMessagesSearchCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().IntVar(&limit, "limit", 50, "limit results")
 	cmd.Flags().StringVar(&afterStr, "after", "", "only messages after time (RFC3339 or YYYY-MM-DD)")
 	cmd.Flags().StringVar(&beforeStr, "before", "", "only messages before time (RFC3339 or YYYY-MM-DD)")
-	cmd.Flags().StringVar(&msgType, "type", "", "media type filter (image|video|audio|document)")
+	cmd.Flags().StringVar(&msgType, "type", "", "message type filter (text|image|video|audio|document|gif|sticker)")
+	cmd.Flags().BoolVar(&hasMedia, "has-media", false, "only return messages that include media")
 	return cmd
 }
 
@@ -331,4 +342,14 @@ func newMessagesContextCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().IntVar(&before, "before", 5, "messages before")
 	cmd.Flags().IntVar(&after, "after", 5, "messages after")
 	return cmd
+}
+
+func normalizeMessageType(value string) (string, error) {
+	msgType := strings.ToLower(strings.TrimSpace(value))
+	switch msgType {
+	case "", "text", "image", "video", "audio", "document", "gif", "sticker":
+		return msgType, nil
+	default:
+		return "", fmt.Errorf("unsupported --type %q (use text, image, video, audio, document, gif, or sticker)", value)
+	}
 }
