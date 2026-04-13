@@ -29,6 +29,60 @@ func countRows(t *testing.T, db *sql.DB, q string, args ...any) int {
 	return n
 }
 
+func seedSearchFilterMessages(t *testing.T, db *DB) string {
+	t.Helper()
+
+	chat := "123@s.whatsapp.net"
+	base := time.Date(2024, 2, 5, 0, 0, 0, 0, time.UTC)
+
+	if err := db.UpsertChat(chat, "dm", "Alice", base); err != nil {
+		t.Fatalf("UpsertChat: %v", err)
+	}
+
+	fixtures := []UpsertMessageParams{
+		{
+			ChatJID:    chat,
+			ChatName:   "Alice",
+			MsgID:      "m-text",
+			SenderJID:  chat,
+			SenderName: "Alice",
+			Timestamp:  base.Add(1 * time.Second),
+			Text:       "project update",
+		},
+		{
+			ChatJID:      chat,
+			ChatName:     "Alice",
+			MsgID:        "m-image",
+			SenderJID:    chat,
+			SenderName:   "Alice",
+			Timestamp:    base.Add(2 * time.Second),
+			Text:         "project screenshot",
+			DisplayText:  "Sent image",
+			MediaType:    "image",
+			MediaCaption: "project screenshot",
+		},
+		{
+			ChatJID:     chat,
+			ChatName:    "Alice",
+			MsgID:       "m-doc",
+			SenderJID:   chat,
+			SenderName:  "Alice",
+			Timestamp:   base.Add(3 * time.Second),
+			DisplayText: "Sent document",
+			MediaType:   "document",
+			Filename:    "project-plan.pdf",
+		},
+	}
+
+	for _, fixture := range fixtures {
+		if err := db.UpsertMessage(fixture); err != nil {
+			t.Fatalf("UpsertMessage %s: %v", fixture.MsgID, err)
+		}
+	}
+
+	return chat
+}
+
 func TestUpsertChatNameAndLastMessageTS(t *testing.T) {
 	db := openTestDB(t)
 
