@@ -70,7 +70,10 @@ func (d *DB) ListMessages(p ListMessagesParams) ([]Message, error) {
 		p.Limit = 50
 	}
 	query := `
-		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), ''
+		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me,
+		       COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''),
+		       COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''),
+		       COALESCE(m.downloaded_at,0), ''
 		FROM messages m
 		LEFT JOIN chats c ON c.jid = m.chat_jid
 		WHERE 1=1`
@@ -94,7 +97,10 @@ func (d *DB) ListMessages(p ListMessagesParams) ([]Message, error) {
 
 func (d *DB) GetMessage(chatJID, msgID string) (Message, error) {
 	row := d.sql.QueryRow(`
-		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), ''
+		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me,
+		       COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''),
+		       COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''),
+		       COALESCE(m.downloaded_at,0), ''
 		FROM messages m
 		LEFT JOIN chats c ON c.jid = m.chat_jid
 		WHERE m.chat_jid = ? AND m.msg_id = ?
@@ -102,11 +108,31 @@ func (d *DB) GetMessage(chatJID, msgID string) (Message, error) {
 	var m Message
 	var ts int64
 	var fromMe int
-	if err := row.Scan(&m.ChatJID, &m.ChatName, &m.MsgID, &m.SenderJID, &ts, &fromMe, &m.Text, &m.DisplayText, &m.MediaType, &m.Snippet); err != nil {
+	var downloadedAt int64
+	if err := row.Scan(
+		&m.ChatJID,
+		&m.ChatName,
+		&m.MsgID,
+		&m.SenderJID,
+		&m.SenderName,
+		&ts,
+		&fromMe,
+		&m.Text,
+		&m.DisplayText,
+		&m.MediaType,
+		&m.MediaCaption,
+		&m.Filename,
+		&m.MimeType,
+		&m.DirectPath,
+		&m.LocalPath,
+		&downloadedAt,
+		&m.Snippet,
+	); err != nil {
 		return Message{}, err
 	}
 	m.Timestamp = fromUnix(ts)
 	m.FromMe = fromMe != 0
+	m.DownloadedAt = fromUnix(downloadedAt)
 	return m, nil
 }
 
@@ -155,7 +181,10 @@ func (d *DB) MessageContext(chatJID, msgID string, before, after int) ([]Message
 	}
 
 	beforeRows, err := d.scanMessages(`
-		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), ''
+		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me,
+		       COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''),
+		       COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''),
+		       COALESCE(m.downloaded_at,0), ''
 		FROM messages m
 		LEFT JOIN chats c ON c.jid = m.chat_jid
 		WHERE m.chat_jid = ? AND m.ts < ?
@@ -167,7 +196,10 @@ func (d *DB) MessageContext(chatJID, msgID string, before, after int) ([]Message
 	}
 
 	afterRows, err := d.scanMessages(`
-		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), ''
+		SELECT m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me,
+		       COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''),
+		       COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''),
+		       COALESCE(m.downloaded_at,0), ''
 		FROM messages m
 		LEFT JOIN chats c ON c.jid = m.chat_jid
 		WHERE m.chat_jid = ? AND m.ts > ?
@@ -202,11 +234,31 @@ func (d *DB) scanMessages(query string, args ...interface{}) ([]Message, error) 
 		var m Message
 		var ts int64
 		var fromMe int
-		if err := rows.Scan(&m.ChatJID, &m.ChatName, &m.MsgID, &m.SenderJID, &ts, &fromMe, &m.Text, &m.DisplayText, &m.MediaType, &m.Snippet); err != nil {
+		var downloadedAt int64
+		if err := rows.Scan(
+			&m.ChatJID,
+			&m.ChatName,
+			&m.MsgID,
+			&m.SenderJID,
+			&m.SenderName,
+			&ts,
+			&fromMe,
+			&m.Text,
+			&m.DisplayText,
+			&m.MediaType,
+			&m.MediaCaption,
+			&m.Filename,
+			&m.MimeType,
+			&m.DirectPath,
+			&m.LocalPath,
+			&downloadedAt,
+			&m.Snippet,
+		); err != nil {
 			return nil, err
 		}
 		m.Timestamp = fromUnix(ts)
 		m.FromMe = fromMe != 0
+		m.DownloadedAt = fromUnix(downloadedAt)
 		out = append(out, m)
 	}
 	return out, rows.Err()
