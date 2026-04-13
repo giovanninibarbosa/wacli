@@ -5,6 +5,7 @@
 ### Changed
 
 - Internal architecture: split store and groups command logic into focused modules for cleaner maintenance and safer follow-up changes.
+- CLI: add read-only mode via `--readonly` / `WACLI_READONLY=1` to block explicit mutating commands for automation and agent use.
 
 ### Build
 

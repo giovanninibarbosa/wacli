@@ -93,6 +93,7 @@ Defaults to `~/.wacli` (override with `--store DIR`).
 
 - `WACLI_DEVICE_LABEL`: set the linked device label (shown in WhatsApp).
 - `WACLI_DEVICE_PLATFORM`: override the linked device platform (defaults to `CHROME` if unset or invalid).
+- `WACLI_READONLY=1`: disable explicit mutating commands such as `send`, `auth`, group changes, and local alias/tag writes. You can also pass `--readonly`.
 
 ## Backfilling older history
 
