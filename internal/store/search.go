@@ -7,13 +7,14 @@ import (
 )
 
 type SearchMessagesParams struct {
-	Query   string
-	ChatJID string
-	From    string
-	Limit   int
-	Before  *time.Time
-	After   *time.Time
-	Type    string
+	Query    string
+	ChatJID  string
+	From     string
+	Limit    int
+	Before   *time.Time
+	After    *time.Time
+	Type     string
+	HasMedia bool
 }
 
 func (d *DB) SearchMessages(p SearchMessagesParams) ([]Message, error) {
@@ -76,9 +77,16 @@ func applyMessageFilters(query string, args []interface{}, p SearchMessagesParam
 		query += " AND m.ts < ?"
 		args = append(args, unix(*p.Before))
 	}
-	if strings.TrimSpace(p.Type) != "" {
-		query += " AND COALESCE(m.media_type,'') = ?"
-		args = append(args, p.Type)
+	if p.HasMedia {
+		query += " AND COALESCE(m.media_type,'') != ''"
+	}
+	switch msgType := strings.ToLower(strings.TrimSpace(p.Type)); msgType {
+	case "":
+	case "text":
+		query += " AND COALESCE(m.media_type,'') = ''"
+	default:
+		query += " AND LOWER(COALESCE(m.media_type,'')) = ?"
+		args = append(args, msgType)
 	}
 	return query, args
 }
