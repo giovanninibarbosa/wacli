@@ -46,16 +46,23 @@ type MediaDownloadInfo struct {
 }
 
 type Message struct {
-	ChatJID     string
-	ChatName    string
-	MsgID       string
-	SenderJID   string
-	Timestamp   time.Time
-	FromMe      bool
-	Text        string
-	DisplayText string
-	MediaType   string
-	Snippet     string
+	ChatJID      string
+	ChatName     string
+	MsgID        string
+	SenderJID    string
+	SenderName   string
+	Timestamp    time.Time
+	FromMe       bool
+	Text         string
+	DisplayText  string
+	MediaType    string
+	MediaCaption string
+	Filename     string
+	MimeType     string
+	DirectPath   string
+	LocalPath    string
+	DownloadedAt time.Time
+	Snippet      string
 }
 
 type MessageInfo struct {

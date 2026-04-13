@@ -185,6 +185,67 @@ func TestMediaDownloadInfoAndMarkDownloaded(t *testing.T) {
 	}
 }
 
+func TestGetMessageReturnsRichDetails(t *testing.T) {
+	db := openTestDB(t)
+
+	chat := "123@s.whatsapp.net"
+	if err := db.UpsertChat(chat, "dm", "Alice", time.Now()); err != nil {
+		t.Fatalf("UpsertChat: %v", err)
+	}
+
+	ts := time.Date(2024, 3, 2, 0, 0, 0, 0, time.UTC)
+	if err := db.UpsertMessage(UpsertMessageParams{
+		ChatJID:       chat,
+		ChatName:      "Alice",
+		MsgID:         "mid",
+		SenderJID:     chat,
+		SenderName:    "Alice Example",
+		Timestamp:     ts,
+		FromMe:        false,
+		Text:          "caption text",
+		DisplayText:   "Sent image",
+		MediaType:     "image",
+		MediaCaption:  "caption text",
+		Filename:      "pic.jpg",
+		MimeType:      "image/jpeg",
+		DirectPath:    "/direct/path",
+		MediaKey:      []byte{1, 2, 3},
+		FileSHA256:    []byte{4, 5},
+		FileEncSHA256: []byte{6, 7},
+		FileLength:    123,
+	}); err != nil {
+		t.Fatalf("UpsertMessage: %v", err)
+	}
+
+	when := time.Date(2024, 3, 2, 0, 0, 1, 0, time.UTC)
+	if err := db.MarkMediaDownloaded(chat, "mid", "/tmp/file", when); err != nil {
+		t.Fatalf("MarkMediaDownloaded: %v", err)
+	}
+
+	msg, err := db.GetMessage(chat, "mid")
+	if err != nil {
+		t.Fatalf("GetMessage: %v", err)
+	}
+	if msg.SenderName != "Alice Example" {
+		t.Fatalf("expected SenderName to round-trip, got %q", msg.SenderName)
+	}
+	if msg.DisplayText != "Sent image" {
+		t.Fatalf("expected DisplayText to round-trip, got %q", msg.DisplayText)
+	}
+	if msg.MediaCaption != "caption text" {
+		t.Fatalf("expected MediaCaption to round-trip, got %q", msg.MediaCaption)
+	}
+	if msg.Filename != "pic.jpg" || msg.MimeType != "image/jpeg" || msg.DirectPath != "/direct/path" {
+		t.Fatalf("unexpected media details: %+v", msg)
+	}
+	if msg.LocalPath != "/tmp/file" {
+		t.Fatalf("expected LocalPath to round-trip, got %q", msg.LocalPath)
+	}
+	if !msg.DownloadedAt.Equal(when) {
+		t.Fatalf("expected DownloadedAt=%s, got %s", when, msg.DownloadedAt)
+	}
+}
+
 func TestContactsAliasTagsAndSearch(t *testing.T) {
 	db := openTestDB(t)
 

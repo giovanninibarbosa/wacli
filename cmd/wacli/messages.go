@@ -89,19 +89,12 @@ func newMessagesListCmd(flags *rootFlags) *cobra.Command {
 				if chatLabel == "" {
 					chatLabel = m.ChatJID
 				}
-				text := strings.TrimSpace(m.DisplayText)
-				if text == "" {
-					text = strings.TrimSpace(m.Text)
-				}
-				if m.MediaType != "" && text == "" {
-					text = "Sent " + m.MediaType
-				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					m.Timestamp.Local().Format("2006-01-02 15:04:05"),
 					truncate(chatLabel, 24),
 					truncate(from, 18),
 					truncate(m.MsgID, 14),
-					truncate(text, 80),
+					truncate(messageHumanText(m), 80),
 				)
 			}
 			_ = w.Flush()
@@ -188,10 +181,7 @@ func newMessagesSearchCmd(flags *rootFlags) *cobra.Command {
 				}
 				match := m.Snippet
 				if match == "" {
-					match = strings.TrimSpace(m.DisplayText)
-				}
-				if match == "" {
-					match = m.Text
+					match = messageDisplayText(m)
 				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 					m.Timestamp.Local().Format("2006-01-02 15:04:05"),
@@ -254,15 +244,30 @@ func newMessagesShowCmd(flags *rootFlags) *cobra.Command {
 			}
 			fmt.Fprintf(os.Stdout, "ID: %s\n", m.MsgID)
 			fmt.Fprintf(os.Stdout, "Time: %s\n", m.Timestamp.Local().Format(time.RFC3339))
-			if m.FromMe {
-				fmt.Fprintf(os.Stdout, "From: me\n")
-			} else {
-				fmt.Fprintf(os.Stdout, "From: %s\n", m.SenderJID)
-			}
+			fmt.Fprintf(os.Stdout, "From: %s\n", messageSenderDetail(m))
 			if m.MediaType != "" {
 				fmt.Fprintf(os.Stdout, "Media: %s\n", m.MediaType)
 			}
-			fmt.Fprintf(os.Stdout, "\n%s\n", m.Text)
+			if m.MediaCaption != "" {
+				fmt.Fprintf(os.Stdout, "Caption: %s\n", m.MediaCaption)
+			}
+			if m.Filename != "" {
+				fmt.Fprintf(os.Stdout, "Filename: %s\n", m.Filename)
+			}
+			if m.MimeType != "" {
+				fmt.Fprintf(os.Stdout, "MIME type: %s\n", m.MimeType)
+			}
+			if m.LocalPath != "" {
+				fmt.Fprintf(os.Stdout, "Downloaded: %s\n", m.LocalPath)
+				if !m.DownloadedAt.IsZero() {
+					fmt.Fprintf(os.Stdout, "Downloaded at: %s\n", m.DownloadedAt.Local().Format(time.RFC3339))
+				}
+			}
+
+			fmt.Fprintf(os.Stdout, "\n%s\n", messageHumanText(m))
+			if raw := messageRawText(m); raw != "" {
+				fmt.Fprintf(os.Stdout, "\nRaw text:\n%s\n", raw)
+			}
 			return nil
 		},
 	}
@@ -307,17 +312,13 @@ func newMessagesContextCmd(flags *rootFlags) *cobra.Command {
 			w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 			fmt.Fprintln(w, "TIME\tFROM\tID\tTEXT")
 			for _, m := range msgs {
-				from := m.SenderJID
-				if m.FromMe {
-					from = "me"
-				}
-				line := m.Text
+				line := messageHumanText(m)
 				if m.MsgID == id {
 					line = ">> " + line
 				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 					m.Timestamp.Local().Format("2006-01-02 15:04:05"),
-					truncate(from, 18),
+					truncate(messageSenderLabel(m), 18),
 					truncate(m.MsgID, 14),
 					truncate(line, 100),
 				)
@@ -331,4 +332,65 @@ func newMessagesContextCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().IntVar(&before, "before", 5, "messages before")
 	cmd.Flags().IntVar(&after, "after", 5, "messages after")
 	return cmd
+}
+
+func messageDisplayText(m store.Message) string {
+	text := strings.TrimSpace(m.DisplayText)
+	if text != "" {
+		return text
+	}
+	text = strings.TrimSpace(m.Text)
+	if text != "" {
+		return text
+	}
+	if mediaType := strings.TrimSpace(m.MediaType); mediaType != "" {
+		return "Sent " + mediaType
+	}
+	return ""
+}
+
+func messageHumanText(m store.Message) string {
+	if text := messageDisplayText(m); text != "" {
+		return text
+	}
+	return "(message)"
+}
+
+func messageRawText(m store.Message) string {
+	raw := strings.TrimSpace(m.Text)
+	if raw == "" {
+		return ""
+	}
+	if raw == messageDisplayText(m) {
+		return ""
+	}
+	return raw
+}
+
+func messageSenderLabel(m store.Message) string {
+	if m.FromMe {
+		return "me"
+	}
+	if name := strings.TrimSpace(m.SenderName); name != "" {
+		return name
+	}
+	return strings.TrimSpace(m.SenderJID)
+}
+
+func messageSenderDetail(m store.Message) string {
+	if m.FromMe {
+		return "me"
+	}
+	name := strings.TrimSpace(m.SenderName)
+	jid := strings.TrimSpace(m.SenderJID)
+	switch {
+	case name != "" && jid != "" && name != jid:
+		return fmt.Sprintf("%s (%s)", name, jid)
+	case name != "":
+		return name
+	case jid != "":
+		return jid
+	default:
+		return "(unknown)"
+	}
 }
